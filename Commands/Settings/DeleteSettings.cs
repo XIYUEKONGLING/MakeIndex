@@ -3,7 +3,7 @@ using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands.Settings;
 
-public class DeleteSettings : CommandSettings
+public class DeleteSettings : GlobalSettings
 {
     [CommandArgument(0, "<INDEX_ID>")]
     [Description("ID of the index to delete")]

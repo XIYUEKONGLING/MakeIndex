@@ -1,38 +1,33 @@
 using System.Text.RegularExpressions;
 using MakeIndex.Commands.Settings;
 using MakeIndex.Core;
+using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log.Interfaces;
+using MakeIndex.Utilities.Log;
 using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands;
 
 public class SearchCommand : Command<SearchSettings>
 {
-    private readonly ILogger _logger;
-    private readonly RegistryService _registryService;
-
-    public SearchCommand(ILogger logger, RegistryService registryService)
-    {
-        _logger = logger;
-        _registryService = registryService;
-    }
-
     public override int Execute(CommandContext context, SearchSettings settings)
     {
+        var logger = new ConsoleLogger();
+        var fileSystem = new PhysicalFileSystem();
+        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        
         try
         {
-            var indexInfo = _registryService.GetIndexInfo(settings.IndexId);
+            var indexInfo = registryService.GetIndexInfo(settings.IndexId);
             if (indexInfo == null)
             {
-                _logger.Error($"Index not found: {settings.IndexId}");
+                logger.Error($"Index not found: {settings.IndexId}");
                 return 1;
             }
 
             var indexPath = Path.Combine(
-                Path.GetDirectoryName(System.AppContext.BaseDirectory) ?? ".",
-                ".indexes",
+                settings.IndexDirectory ?? ".indexes", 
                 "files",
                 indexInfo.FileName ?? $"{settings.IndexId}.{(indexInfo.Binaries ? "bson" : "json")}"
             );
@@ -40,7 +35,7 @@ public class SearchCommand : Command<SearchSettings>
             var index = IndexSerializer.Deserialize(indexPath, indexInfo.Binaries);
             if (index == null)
             {
-                _logger.Error($"Failed to load index: {settings.IndexId}");
+                logger.Error($"Failed to load index: {settings.IndexId}");
                 return 1;
             }
 
@@ -83,7 +78,7 @@ public class SearchCommand : Command<SearchSettings>
         }
         catch (Exception ex)
         {
-            _logger.Error($"Search command failed: {ex.Message}");
+            logger.Error($"Search command failed: {ex.Message}");
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
                 CommandResult.Fail(ex.Message),
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true }

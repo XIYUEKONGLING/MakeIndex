@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using MakeIndex.Commands;
+using MakeIndex.Commands.Settings;
 using MakeIndex.Utilities.Log;
 using Spectre.Console.Cli;
 
@@ -7,8 +8,6 @@ namespace MakeIndex;
 
 public static class Program
 {
-    private static readonly ConsoleLogger Logger = new ConsoleLogger();
-    
     public static int Main(string[] args)
     {
         var app = new CommandApp();
@@ -18,7 +17,7 @@ public static class Program
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             config.SetApplicationVersion(version?.ToString() ?? "0.0.0.0");
             
-            // Add commands
+            // Add commands with global settings
             config.AddCommand<IndexCommand>("index")
                 .WithDescription("Create a new index of a directory");
                 

@@ -1,32 +1,28 @@
 using System.ComponentModel;
 using MakeIndex.Commands.Settings;
+using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log.Interfaces;
+using MakeIndex.Utilities.Log;
 using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands;
 
 public class ListCommand : Command<ListSettings>
 {
-    private readonly ILogger _logger;
-    private readonly RegistryService _registryService;
-
-    public ListCommand(ILogger logger, RegistryService registryService)
-    {
-        _logger = logger;
-        _registryService = registryService;
-    }
-
     public override int Execute(CommandContext context, ListSettings settings)
     {
+        var logger = new ConsoleLogger();
+        var fileSystem = new PhysicalFileSystem();
+        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        
         try
         {
-            var indices = _registryService.GetAllIndices();
+            var indices = registryService.GetAllIndices();
             
             if (!indices.Any())
             {
-                _logger.Information("No indices found");
+                logger.Information("No indices found");
                 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
                     CommandResult.Ok("No indices found", new { Indices = Array.Empty<object>() }),
                     new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
@@ -54,10 +50,10 @@ public class ListCommand : Command<ListSettings>
 
             if (settings.Verbose)
             {
-                _logger.Information($"Found {indices.Count} indices:");
+                logger.Information($"Found {indices.Count} indices:");
                 foreach (var index in indices)
                 {
-                    _logger.Information($"  {index.Id}: {index.BasicDirectory} ({index.FileCount} files, {FormatSize(index.FileSize)})");
+                    logger.Information($"  {index.Id}: {index.BasicDirectory} ({index.FileCount} files, {FormatSize(index.FileSize)})");
                 }
             }
 
@@ -70,7 +66,7 @@ public class ListCommand : Command<ListSettings>
         }
         catch (Exception ex)
         {
-            _logger.Error($"List command failed: {ex.Message}");
+            logger.Error($"List command failed: {ex.Message}");
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
                 CommandResult.Fail(ex.Message),
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true }

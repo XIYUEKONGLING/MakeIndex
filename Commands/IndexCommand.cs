@@ -1,43 +1,38 @@
 using MakeIndex.Commands.Settings;
 using MakeIndex.Core;
+using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log.Interfaces;
+using MakeIndex.Utilities.Log;
 using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands;
 
 public class IndexCommand : Command<IndexSettings>
 {
-    private readonly ILogger _logger;
-    private readonly RegistryService _registryService;
-
-    public IndexCommand(ILogger logger, RegistryService registryService)
-    {
-        _logger = logger;
-        _registryService = registryService;
-    }
-
     public override int Execute(CommandContext context, IndexSettings settings)
     {
+        var logger = new ConsoleLogger();
+        var fileSystem = new PhysicalFileSystem();
+        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+
         try
         {
-            _logger.Information($"Indexing directory: {settings.Directory}");
+            logger.Information($"Indexing directory: {settings.Directory}");
             
-            var indexer = new Indexer(_logger);
+            var indexer = new Indexer(logger);
             var index = indexer.CreateIndex(settings.Directory, settings.CalculateHashes);
             
             if (index == null)
             {
-                _logger.Error("Failed to create index");
+                logger.Error("Failed to create index");
                 return 1;
             }
 
             var indexId = IndexIdGenerator.Generate(settings.Directory);
             var indexPath = Path.Combine(
-                Path.GetDirectoryName(System.AppContext.BaseDirectory) ?? ".",
-                ".indexes",
-                $"files",
+                settings.IndexDirectory ?? ".indexes", 
+                "files", 
                 $"{indexId}.{(settings.UseBson ? "bson" : "json")}"
             );
 
@@ -49,7 +44,7 @@ public class IndexCommand : Command<IndexSettings>
             }
 
             IndexSerializer.Serialize(index, indexPath, settings.UseBson, !settings.NoIndent);
-            _registryService.AddIndexToRegistry(index, indexId, indexPath, settings.UseBson);
+            registryService.AddIndexToRegistry(index, indexId, indexPath, settings.UseBson);
 
             var result = new IndexResult
             {
@@ -61,8 +56,8 @@ public class IndexCommand : Command<IndexSettings>
                 CreatedAt = index.MetaData.CreatedAt
             };
 
-            _logger.Information($"Index created successfully: {indexId}");
-            _logger.Information($"Files: {result.FileCount}, Directories: {result.DirectoryCount}, Size: {FormatSize(result.TotalSize)}");
+            logger.Information($"Index created successfully: {indexId}");
+            logger.Information($"Files: {result.FileCount}, Directories: {result.DirectoryCount}, Size: {FormatSize(result.TotalSize)}");
 
             // Output result as JSON
             var json = System.Text.Json.JsonSerializer.Serialize(
@@ -75,7 +70,7 @@ public class IndexCommand : Command<IndexSettings>
         }
         catch (Exception ex)
         {
-            _logger.Error($"Index command failed: {ex.Message}");
+            logger.Error($"Index command failed: {ex.Message}");
             var errorResult = System.Text.Json.JsonSerializer.Serialize(
                 CommandResult.Fail(ex.Message),
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true }

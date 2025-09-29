@@ -1,12 +1,24 @@
+using Newtonsoft.Json;
+
 namespace MakeIndex.Models;
 
+[Serializable, JsonObject]
 public sealed class Version : IComparable<Version>, IEquatable<Version>, IComparable
 {
-    public long Major { get; }
-    public long Minor { get; }
-    public long Patch { get; }
-    public long? Build { get; }
-    public string? Tag { get; }
+    [JsonProperty]
+    public long Major { get; set; }
+    
+    [JsonProperty]
+    public long Minor { get; set; }
+    
+    [JsonProperty]
+    public long Patch { get; set; }
+    
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+    public long? Build { get; set; }
+    
+    [JsonProperty(NullValueHandling = NullValueHandling.Include)]
+    public string? Tag { get; set; }
     
     public Version()
     {

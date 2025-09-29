@@ -7,9 +7,15 @@
         <Nullable>enable</Nullable>
         <Version>1.0.0.0</Version>
         <Title>MakeIndex</Title>
+        
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <PublishTrimmed>false</PublishTrimmed>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
       <PackageReference Include="Spectre.Console" Version="0.51.1" />

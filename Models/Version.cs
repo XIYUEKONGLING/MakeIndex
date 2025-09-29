@@ -168,8 +168,12 @@ public sealed class Version : IComparable<Version>, IEquatable<Version>, ICompar
     public bool IsCompatibleWith(Version minVersion, Version? maxVersion = null) => 
         this >= minVersion && (maxVersion is null || this <= maxVersion);
 
+    [JsonIgnore]
     public bool IsPreRelease => Build.HasValue;
+    
+    [JsonIgnore]
     public bool HasTag => !string.IsNullOrEmpty(Tag);
+    
     public Version GetReleaseVersion() => new(Major, Minor, Patch);
     public Version GetVersionWithoutTag() => new(Major, Minor, Patch, Build);
     public Version WithTag(string? tag) => new(Major, Minor, Patch, Build, tag);

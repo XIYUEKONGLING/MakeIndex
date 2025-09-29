@@ -71,14 +71,14 @@ public class DeleteCommand : BaseCommand<DeleteSettings>
         {
             lock (Logger.ConsoleLock)
             {
-                AnsiConsole.MarkupLine($"[green]✓ {deleteResult.Message}[/]");
+                AnsiConsole.MarkupLine($"[green](+) {deleteResult.Message}[/]");
             }
         }
         else if (result is DeleteResult errorResult && !errorResult.Success)
         {
             lock (Logger.ConsoleLock)
             {
-                AnsiConsole.MarkupLine($"[red]✗ {errorResult.Error}[/]");
+                AnsiConsole.MarkupLine($"[red](-) {errorResult.Error}[/]");
             }
         }
     }

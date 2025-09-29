@@ -75,7 +75,7 @@ public class IndexCommand : BaseCommand<IndexSettings>
         {
             lock (Logger.ConsoleLock)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Index created:[/] {indexResult.Id}");
+                AnsiConsole.MarkupLine($"[green](+) Index created:[/] {indexResult.Id}");
                 AnsiConsole.MarkupLine($"[bold]Files:[/] {indexResult.FileCount}  [bold]Directories:[/] {indexResult.DirectoryCount}  [bold]Size:[/] {FormatSize(indexResult.TotalSize)}");
             }
         }

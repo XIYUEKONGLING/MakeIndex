@@ -20,7 +20,7 @@ public class IndexCommand : Command<IndexSettings>
         {
             logger.Information($"Indexing directory: {settings.Directory}");
             
-            var indexer = new Indexer(logger);
+            var indexer = new FileSystemIndexer(fileSystem, logger);
             var index = indexer.CreateIndex(settings.Directory, settings.CalculateHashes);
             
             if (index == null)

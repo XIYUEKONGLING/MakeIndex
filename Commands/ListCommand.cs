@@ -3,18 +3,39 @@ using MakeIndex.Commands.Settings;
 using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log;
+using Spectre.Console;
 using Spectre.Console.Cli;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace MakeIndex.Commands;
 
-public class ListCommand : Command<ListSettings>
+public class ListCommand : BaseCommand<ListSettings>
 {
-    public override int Execute(CommandContext context, ListSettings settings)
+    public class ListResult
     {
-        var logger = new ConsoleLogger();
+        public int TotalCount { get; set; }
+        public List<IndexInfo> Indices { get; set; } = new();
+        
+        public class IndexInfo
+        {
+            public string? Id { get; set; } = string.Empty;
+            public string? FileName { get; set; } = string.Empty;
+            public string? BasicDirectory { get; set; } = string.Empty;
+            public string? CreatedAt { get; set; } = string.Empty;
+            public long Timestamp { get; set; }
+            public long FileCount { get; set; }
+            public long FileSize { get; set; }
+            public string FileSizeHuman { get; set; } = string.Empty;
+            public bool Binaries { get; set; }
+            public bool HashesIncluded { get; set; }
+        }
+    }
+
+    protected override int ExecuteCommand(CommandContext context, ListSettings settings)
+    {
         var fileSystem = new PhysicalFileSystem();
-        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        var registryService = new RegistryService(fileSystem, Logger, settings.IndexDirectory ?? ".indexes");
         
         try
         {
@@ -22,69 +43,75 @@ public class ListCommand : Command<ListSettings>
             
             if (!indices.Any())
             {
-                logger.Information("No indices found");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                    CommandResult.Ok("No indices found", new { Indices = Array.Empty<object>() }),
-                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-                ));
+                Logger.Information("No indices found");
+                OutputResult(new ListResult { TotalCount = 0, Indices = new() });
                 return 0;
             }
 
-            var result = new
+            var result = new ListResult
             {
                 TotalCount = indices.Count,
-                Indices = indices.Select(i => new
+                Indices = indices.Select(i => new ListResult.IndexInfo
                 {
-                    i.Id,
-                    i.FileName,
-                    i.BasicDirectory,
-                    i.CreatedAt,
-                    i.Timestamp,
-                    i.FileCount,
+                    Id = i.Id,
+                    FileName = i.FileName,
+                    BasicDirectory = i.BasicDirectory,
+                    CreatedAt = i.CreatedAt,
+                    Timestamp = i.Timestamp,
+                    FileCount = i.FileCount,
                     FileSize = i.FileSize,
                     FileSizeHuman = FormatSize(i.FileSize),
-                    i.Binaries,
-                    i.HashesIncluded
-                })
+                    Binaries = i.Binaries,
+                    HashesIncluded = i.HashesIncluded
+                }).ToList()
             };
 
             if (settings.Verbose)
             {
-                logger.Information($"Found {indices.Count} indices:");
+                Logger.Information($"Found {indices.Count} indices:");
                 foreach (var index in indices)
                 {
-                    logger.Information($"  {index.Id}: {index.BasicDirectory} ({index.FileCount} files, {FormatSize(index.FileSize)})");
+                    Logger.Information($"  {index.Id}: {index.BasicDirectory} ({index.FileCount} files, {FormatSize(index.FileSize)})");
                 }
             }
 
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Ok($"Found {indices.Count} indices", result),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
-
+            OutputResult(result);
             return 0;
         }
         catch (Exception ex)
         {
-            logger.Error($"List command failed: {ex.Message}");
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Fail(ex.Message),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
+            Logger.Error($"List command failed: {ex.Message}");
+            OutputResult(new { Error = ex.Message }, false);
             return 1;
         }
     }
 
-    private static string FormatSize(long bytes)
+    protected override void OutputHumanReadable(object result, bool success, string message)
     {
-        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
-        int counter = 0;
-        decimal number = bytes;
-        while (Math.Round(number / 1024) >= 1)
+        if (result is ListResult listResult)
         {
-            number /= 1024;
-            counter++;
+            lock (Logger.ConsoleLock)
+            {
+                var table = new Table();
+                table.AddColumn("ID");
+                table.AddColumn("Directory");
+                table.AddColumn("Files");
+                table.AddColumn("Size");
+                table.AddColumn("Created At");
+
+                foreach (var index in listResult.Indices)
+                {
+                    table.AddRow(
+                        index.Id ?? string.Empty,
+                        index.BasicDirectory ?? string.Empty,
+                        index.FileCount.ToString(),
+                        index.FileSizeHuman,
+                        index.CreatedAt ?? string.Empty
+                    );
+                }
+
+                AnsiConsole.Write(table);
+            }
         }
-        return $"{number:n1} {suffixes[counter]}";
     }
 }

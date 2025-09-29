@@ -1,21 +1,20 @@
 using MakeIndex.Commands.Settings;
 using MakeIndex.Core;
 using MakeIndex.Core.FileSystem;
-using MakeIndex.Models;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log;
+using Spectre.Console;
 using Spectre.Console.Cli;
+using System.Collections.Generic;
 
 namespace MakeIndex.Commands;
 
-public class CompareCommand : Command<CompareSettings>
+public class CompareCommand : BaseCommand<CompareSettings>
 {
-    public override int Execute(CommandContext context, CompareSettings settings)
+    protected override int ExecuteCommand(CommandContext context, CompareSettings settings)
     {
-        var logger = new ConsoleLogger();
         var fileSystem = new PhysicalFileSystem();
-        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        var registryService = new RegistryService(fileSystem, Logger, settings.IndexDirectory ?? ".indexes");
         
         try
         {
@@ -24,7 +23,7 @@ public class CompareCommand : Command<CompareSettings>
 
             if (index1Info == null || index2Info == null)
             {
-                logger.Error($"One or both indices not found: {settings.IndexId1}, {settings.IndexId2}");
+                Logger.Error($"One or both indices not found: {settings.IndexId1}, {settings.IndexId2}");
                 return 1;
             }
 
@@ -45,28 +44,57 @@ public class CompareCommand : Command<CompareSettings>
 
             if (index1 == null || index2 == null)
             {
-                logger.Error("Failed to load one or both indices");
+                Logger.Error("Failed to load one or both indices");
                 return 1;
             }
 
             var comparer = new IndexComparer();
             var result = comparer.Compare(index1, index2, settings.UseHashes);
 
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Ok("Comparison completed", result),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
-
+            OutputResult(result);
             return 0;
         }
         catch (Exception ex)
         {
-            logger.Error($"Compare command failed: {ex.Message}");
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Fail(ex.Message),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
+            Logger.Error($"Compare command failed: {ex.Message}");
+            OutputResult(new { Error = ex.Message }, false);
             return 1;
         }
+    }
+
+    protected override void OutputHumanReadable(object result, bool success, string message)
+    {
+        if (result is CompareResult compareResult)
+        {
+            lock (Logger.ConsoleLock)
+            {
+                var table = new Table();
+                table.AddColumn("Change Type");
+                table.AddColumn("Count");
+                table.AddColumn("Examples");
+
+                AddComparisonRow(table, "New Files", compareResult.NewFiles);
+                AddComparisonRow(table, "Modified Files", compareResult.ModifiedFiles);
+                AddComparisonRow(table, "Deleted Files", compareResult.DeletedFiles);
+                AddComparisonRow(table, "New Directories", compareResult.NewDirectories);
+                AddComparisonRow(table, "Deleted Directories", compareResult.DeletedDirectories);
+
+                AnsiConsole.Write(table);
+            }
+        }
+    }
+
+    private void AddComparisonRow(Table table, string title, List<string> items)
+    {
+        var count = items.Count;
+        var examples = count > 0 && !((CompareSettings)Settings).FullOutput
+            ? string.Join("\n", items.Take(5)) + (count > 5 ? $"\n... and {count - 5} more" : "")
+            : string.Join("\n", items);
+
+        table.AddRow(
+            title,
+            count.ToString(),
+            examples
+        );
     }
 }

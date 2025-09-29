@@ -3,25 +3,26 @@ using MakeIndex.Core;
 using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log;
+using Spectre.Console;
 using Spectre.Console.Cli;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace MakeIndex.Commands;
 
-public class SizeCommand : Command<SizeSettings>
+public class SizeCommand : BaseCommand<SizeSettings>
 {
-    public override int Execute(CommandContext context, SizeSettings settings)
+    protected override int ExecuteCommand(CommandContext context, SizeSettings settings)
     {
-        var logger = new ConsoleLogger();
         var fileSystem = new PhysicalFileSystem();
-        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        var registryService = new RegistryService(fileSystem, Logger, settings.IndexDirectory ?? ".indexes");
         
         try
         {
             var indexInfo = registryService.GetIndexInfo(settings.IndexId);
             if (indexInfo == null)
             {
-                logger.Error($"Index not found: {settings.IndexId}");
+                Logger.Error($"Index not found: {settings.IndexId}");
                 return 1;
             }
 
@@ -34,28 +35,54 @@ public class SizeCommand : Command<SizeSettings>
             var index = IndexSerializer.Deserialize(indexPath, indexInfo.Binaries);
             if (index == null)
             {
-                logger.Error($"Failed to load index: {settings.IndexId}");
+                Logger.Error($"Failed to load index: {settings.IndexId}");
                 return 1;
             }
 
             var sizeAnalyzer = new SizeAnalyzer();
             var result = sizeAnalyzer.Analyze(index, settings.Depth, settings.MinSizeMB);
 
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Ok("Size analysis completed", result),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
-
+            OutputResult(result);
             return 0;
         }
         catch (Exception ex)
         {
-            logger.Error($"Size command failed: {ex.Message}");
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Fail(ex.Message),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
+            Logger.Error($"Size command failed: {ex.Message}");
+            OutputResult(new { Error = ex.Message }, false);
             return 1;
+        }
+    }
+
+    protected override void OutputHumanReadable(object result, bool success, string message)
+    {
+        if (result is SizeAnalysisResult sizeResult)
+        {
+            lock (Logger.ConsoleLock)
+            {
+                var table = new Table();
+                table.AddColumn("Path");
+                table.AddColumn("Size");
+                table.AddColumn("Percentage");
+
+                foreach (var item in ((SizeSettings)Settings).FullOutput 
+                    ? sizeResult.Items 
+                    : sizeResult.Items.Take(20))
+                {
+                    table.AddRow(
+                        item.Path,
+                        FormatSize(item.Size),
+                        $"{item.Percentage:F1}%"
+                    );
+                }
+
+                if (!((SizeSettings)Settings).FullOutput && sizeResult.Items.Count > 20)
+                {
+                    table.AddRow("...", "...", "...");
+                    table.AddRow($"{sizeResult.Items.Count - 20} more items", "", "");
+                }
+
+                AnsiConsole.Write(table);
+            }
         }
     }
 }

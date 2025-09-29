@@ -16,4 +16,8 @@ public class SizeSettings : GlobalSettings
     [CommandOption("-m|--min-size")]
     [Description("Minimum size in MB to display")]
     public double MinSizeMB { get; set; } = 0;
+    
+    [CommandOption("--full")]
+    [Description("Show all size details")]
+    public bool FullOutput { get; set; }
 }

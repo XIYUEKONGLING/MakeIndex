@@ -3,29 +3,28 @@ using MakeIndex.Core;
 using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands;
 
-public class IndexCommand : Command<IndexSettings>
+public class IndexCommand : BaseCommand<IndexSettings>
 {
-    public override int Execute(CommandContext context, IndexSettings settings)
+    protected override int ExecuteCommand(CommandContext context, IndexSettings settings)
     {
-        var logger = new ConsoleLogger();
         var fileSystem = new PhysicalFileSystem();
-        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        var registryService = new RegistryService(fileSystem, Logger, settings.IndexDirectory ?? ".indexes");
 
         try
         {
-            logger.Information($"Indexing directory: {settings.Directory}");
+            Logger.Information($"Indexing directory: {settings.Directory}");
             
-            var indexer = new FileSystemIndexer(fileSystem, logger);
+            var indexer = new FileSystemIndexer(fileSystem, Logger);
             var index = indexer.CreateIndex(settings.Directory, settings.CalculateHashes);
             
             if (index == null)
             {
-                logger.Error("Failed to create index");
+                Logger.Error("Failed to create index");
                 return 1;
             }
 
@@ -56,40 +55,29 @@ public class IndexCommand : Command<IndexSettings>
                 CreatedAt = index.MetaData.CreatedAt
             };
 
-            logger.Information($"Index created successfully: {indexId}");
-            logger.Information($"Files: {result.FileCount}, Directories: {result.DirectoryCount}, Size: {FormatSize(result.TotalSize)}");
+            Logger.Information($"Index created successfully: {indexId}");
+            Logger.Information($"Files: {result.FileCount}, Directories: {result.DirectoryCount}, Size: {FormatSize(result.TotalSize)}");
 
-            // Output result as JSON
-            var json = System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Ok("Index created successfully", result),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            );
-            Console.WriteLine(json);
-
+            OutputResult(result);
             return 0;
         }
         catch (Exception ex)
         {
-            logger.Error($"Index command failed: {ex.Message}");
-            var errorResult = System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Fail(ex.Message),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            );
-            Console.WriteLine(errorResult);
+            Logger.Error($"Index command failed: {ex.Message}");
+            OutputResult(new { Error = ex.Message }, false);
             return 1;
         }
     }
 
-    private static string FormatSize(long bytes)
+    protected override void OutputHumanReadable(object result, bool success, string message)
     {
-        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
-        int counter = 0;
-        decimal number = bytes;
-        while (Math.Round(number / 1024) >= 1)
+        if (result is IndexResult indexResult)
         {
-            number /= 1024;
-            counter++;
+            lock (Logger.ConsoleLock)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Index created:[/] {indexResult.Id}");
+                AnsiConsole.MarkupLine($"[bold]Files:[/] {indexResult.FileCount}  [bold]Directories:[/] {indexResult.DirectoryCount}  [bold]Size:[/] {FormatSize(indexResult.TotalSize)}");
+            }
         }
-        return $"{number:n1} {suffixes[counter]}";
     }
 }

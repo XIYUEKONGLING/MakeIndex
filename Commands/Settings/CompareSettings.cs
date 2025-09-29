@@ -16,4 +16,8 @@ public class CompareSettings : GlobalSettings
     [CommandOption("-h|--hashes")]
     [Description("Use hashes for comparison if available")]
     public bool UseHashes { get; set; }
+    
+    [CommandOption("--full")]
+    [Description("Show full comparison results")]
+    public bool FullOutput { get; set; }
 }

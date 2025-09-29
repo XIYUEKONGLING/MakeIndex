@@ -13,6 +13,11 @@ public class ConsoleLogger : ILogger
     
     public ConsoleLogger() { }
     
+    public ConsoleLogger(bool colorful = true)
+    {
+        Colorful = colorful;
+    }
+    
     public ConsoleLogger(string title, bool colorful = true)
     {
         Title = title;

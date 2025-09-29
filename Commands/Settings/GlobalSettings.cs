@@ -12,4 +12,12 @@ public class GlobalSettings : CommandSettings
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose logging")]
     public bool Verbose { get; set; }
+    
+    [CommandOption("--no-color")]
+    [Description("Disable colored output")]
+    public bool NoColor { get; set; }
+    
+    [CommandOption("--json")]
+    [Description("Output in JSON format")]
+    public bool JsonOutput { get; set; }
 }

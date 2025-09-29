@@ -2,29 +2,31 @@ using MakeIndex.Commands.Settings;
 using MakeIndex.Core.FileSystem;
 using MakeIndex.Models.Result;
 using MakeIndex.Services;
-using MakeIndex.Utilities.Log;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace MakeIndex.Commands;
 
-public class DeleteCommand : Command<DeleteSettings>
+public class DeleteCommand : BaseCommand<DeleteSettings>
 {
-    public override int Execute(CommandContext context, DeleteSettings settings)
+    public class DeleteResult
     {
-        var logger = new ConsoleLogger();
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public string? Error { get; set; }
+    }
+
+    protected override int ExecuteCommand(CommandContext context, DeleteSettings settings)
+    {
         var fileSystem = new PhysicalFileSystem();
-        var registryService = new RegistryService(fileSystem, logger, settings.IndexDirectory ?? ".indexes");
+        var registryService = new RegistryService(fileSystem, Logger, settings.IndexDirectory ?? ".indexes");
         
         try
         {
             var indexInfo = registryService.GetIndexInfo(settings.IndexId);
             if (indexInfo == null)
             {
-                logger.Error($"Index not found: {settings.IndexId}");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                    CommandResult.Fail($"Index not found: {settings.IndexId}"),
-                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-                ));
+                Logger.Error($"Index not found: {settings.IndexId}");
                 return 1;
             }
 
@@ -38,37 +40,46 @@ public class DeleteCommand : Command<DeleteSettings>
             if (File.Exists(indexPath))
             {
                 File.Delete(indexPath);
-                logger.Information($"Deleted index file: {indexPath}");
+                Logger.Information($"Deleted index file: {indexPath}");
             }
 
             // Remove from registry
             if (registryService.RemoveIndexFromRegistry(settings.IndexId))
             {
-                logger.Information($"Index deleted successfully: {settings.IndexId}");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                    CommandResult.Ok($"Index deleted successfully: {settings.IndexId}"),
-                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-                ));
+                Logger.Information($"Index deleted successfully: {settings.IndexId}");
+                OutputResult(new DeleteResult { Success = true, Message = $"Index deleted: {settings.IndexId}" });
                 return 0;
             }
             else
             {
-                logger.Error($"Failed to remove index from registry: {settings.IndexId}");
-                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                    CommandResult.Fail($"Failed to remove index from registry: {settings.IndexId}"),
-                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-                ));
+                Logger.Error($"Failed to remove index from registry: {settings.IndexId}");
+                OutputResult(new DeleteResult { Success = false, Error = $"Failed to remove index from registry: {settings.IndexId}" });
                 return 1;
             }
         }
         catch (Exception ex)
         {
-            logger.Error($"Delete command failed: {ex.Message}");
-            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(
-                CommandResult.Fail(ex.Message),
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            ));
+            Logger.Error($"Delete command failed: {ex.Message}");
+            OutputResult(new DeleteResult { Success = false, Error = ex.Message });
             return 1;
+        }
+    }
+
+    protected override void OutputHumanReadable(object result, bool success, string message)
+    {
+        if (result is DeleteResult deleteResult && deleteResult.Success)
+        {
+            lock (Logger.ConsoleLock)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ {deleteResult.Message}[/]");
+            }
+        }
+        else if (result is DeleteResult errorResult && !errorResult.Success)
+        {
+            lock (Logger.ConsoleLock)
+            {
+                AnsiConsole.MarkupLine($"[red]✗ {errorResult.Error}[/]");
+            }
         }
     }
 }

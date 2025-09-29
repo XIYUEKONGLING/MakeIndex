@@ -1,9 +1,13 @@
-﻿namespace MakeIndex;
+﻿using MakeIndex.Utilities.Log;
+
+namespace MakeIndex;
 
 public static class Program
 {
+    private static readonly ConsoleLogger Logger = new ConsoleLogger();
+    
     public static void Main(string[] args)
     {
-        Console.WriteLine("Hello, World!");
+        Logger.Information("Hello, World!");
     }
 }

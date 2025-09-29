@@ -12,6 +12,9 @@
     <ItemGroup>
       <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
+      <PackageReference Include="Spectre.Console" Version="0.51.1" />
+      <PackageReference Include="Spectre.Console.Cli" Version="0.51.1" />
+      <PackageReference Include="Spectre.Console.Json" Version="0.51.1" />
       <PackageReference Include="System.Text.Json" Version="9.0.9" />
     </ItemGroup>
 

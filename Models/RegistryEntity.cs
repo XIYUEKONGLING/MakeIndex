@@ -21,6 +21,9 @@ public class RegistryEntity
     public long Timestamp { get; set; } = 0;
     
     [JsonProperty]
+    public bool Binaries { get; set; } = false;
+    
+    [JsonProperty]
     public long FileCount { get; set; } = 0;
     
     [JsonProperty]

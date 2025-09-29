@@ -7,6 +7,7 @@ public interface ILogger
     void Log(LogLevel level, params string[] messages);
     
     void Standard(params string[] messages);
+    void Formatted(params string[] messages);
     
     void Null(params string[] messages) => Log(LogLevel.Null, messages);
     void Trace(params string[] messages) => Log(LogLevel.Trace, messages);

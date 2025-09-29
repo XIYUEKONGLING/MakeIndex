@@ -113,6 +113,36 @@ public class ConsoleLogger : ILogger
             }
         }
     }
+
+    public void Formatted(params string[] messages)
+    {
+        if (Colorful)
+        {
+            var builder = new StringBuilder();
+            foreach (var message in messages)
+            {
+                builder.Append($"{message} ");
+            }
+
+            lock (ConsoleLock)
+            {
+                AnsiConsole.MarkupLine(builder.ToString());
+            }
+        }
+        else
+        {
+            var builder = new StringBuilder();
+            foreach (var message in messages)
+            {
+                builder.Append(message).Append(' ');
+            }
+
+            lock (ConsoleLock)
+            {
+                Console.WriteLine(builder.ToString());
+            }
+        }
+    }
     
     public void Null(params string[] messages) => Log(LogLevel.Null, messages);
     public void Trace(params string[] messages) => Log(LogLevel.Trace, messages);

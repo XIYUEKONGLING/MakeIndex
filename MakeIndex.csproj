@@ -16,17 +16,13 @@
 
     <ItemGroup>
       <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
       <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
       <PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
       <PackageReference Include="Spectre.Console" Version="0.51.1" />
       <PackageReference Include="Spectre.Console.Cli" Version="0.51.1" />
       <PackageReference Include="Spectre.Console.Json" Version="0.51.1" />
       <PackageReference Include="System.Text.Json" Version="9.0.9" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Models\Result\" />
-      <Folder Include="Services\" />
     </ItemGroup>
 
 </Project>
